@@ -22,7 +22,6 @@ interface Fixture {
 
 // ---------- PAGE ----------
 export default function FixturesAdminPage() {
-  // IMPORTANT: FIXED TYPE DEFINITIONS
   const [fixtures, setFixtures] = useState<Fixture[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
 
@@ -34,13 +33,11 @@ export default function FixturesAdminPage() {
 
   const [loading, setLoading] = useState<boolean>(false);
 
-  // ---------- FETCH FIXTURES ----------
   const fetchFixtures = async (): Promise<void> => {
     const { data } = await supabase.from("fixtures").select("*").order("date_time");
     setFixtures((data as Fixture[]) ?? []);
   };
 
-  // ---------- FETCH TEAMS ----------
   const fetchTeams = async (): Promise<void> => {
     const { data } = await supabase.from("teams").select("*");
     setTeams((data as Team[]) ?? []);
@@ -51,10 +48,9 @@ export default function FixturesAdminPage() {
     fetchTeams();
   }, []);
 
-  // ---------- ADD FIXTURE ----------
   const addFixture = async (): Promise<void> => {
     if (!matchNo || !teamA || !teamB || !venue || !dateTime) {
-      alert("Fill all fields");
+      alert("Please fill all fields");
       return;
     }
 
@@ -73,7 +69,6 @@ export default function FixturesAdminPage() {
 
     setLoading(false);
 
-    // Reset fields
     setMatchNo("");
     setTeamA("");
     setTeamB("");
@@ -87,7 +82,6 @@ export default function FixturesAdminPage() {
     <div className="max-w-4xl mx-auto p-6 text-white">
       <h1 className="text-3xl font-bold mb-6 text-green-400">Manage Fixtures</h1>
 
-      {/* ADD FIXTURE FORM */}
       <div className="glass-card p-6 rounded-xl mb-12 border border-white/20 bg-black/30">
         <h2 className="text-xl font-semibold mb-4">Add Fixture</h2>
 
@@ -140,7 +134,6 @@ export default function FixturesAdminPage() {
         </Button>
       </div>
 
-      {/* LIST FIXTURES */}
       <h2 className="text-xl font-semibold mb-4 text-green-300">Existing Fixtures</h2>
 
       {fixtures.length === 0 && <p className="text-gray-400">No fixtures added yet.</p>}
