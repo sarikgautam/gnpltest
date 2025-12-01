@@ -3,46 +3,66 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
+// Gallery item type
+interface GalleryImage {
+  id: string;
+  image_url: string;
+  title?: string | null;
+  created_at?: string;
+}
+
 export default function GallerySection() {
-  const [images, setImages] = useState([]);
+  // FIXED — typed state
+  const [images, setImages] = useState<GalleryImage[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
   const fetchImages = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("gallery")
       .select("*")
       .order("created_at", { ascending: false })
-      .limit(12); // show latest 12
+      .limit(12);
 
-    setImages(data || []);
+    if (!error && data) {
+      setImages(data as GalleryImage[]);
+    }
+
+    setLoading(false);
   };
 
   useEffect(() => {
     fetchImages();
   }, []);
 
-  if (!images.length) return null;
-
   return (
     <section className="max-w-7xl mx-auto px-4 mt-20">
-      <h2 className="text-3xl font-bold text-center mb-8">Gallery</h2>
+      <h2 className="text-3xl font-bold text-center text-green-400 mb-8">
+        Gallery
+      </h2>
 
-      <div className="grid md:grid-cols-4 gap-4">
-        {images.map((img: any) => (
-          <img
+      {loading && (
+        <p className="text-center text-gray-400 py-10">Loading photos...</p>
+      )}
+
+      {!loading && images.length === 0 && (
+        <p className="text-center text-gray-400 py-10">
+          No photos added yet.
+        </p>
+      )}
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {images.map((img) => (
+          <div
             key={img.id}
-            src={img.url}
-            className="w-full h-48 object-cover rounded shadow hover:scale-105 transition"
-          />
+            className="overflow-hidden rounded-xl bg-black/20 border border-white/10 backdrop-blur-xl shadow-lg"
+          >
+            <img
+              src={img.image_url}
+              alt={img.title || "Gallery image"}
+              className="w-full h-40 object-cover hover:scale-110 transition duration-300"
+            />
+          </div>
         ))}
-      </div>
-
-      <div className="text-center mt-6">
-        <a
-          href="/gallery"
-          className="text-blue-600 underline"
-        >
-          View Full Gallery
-        </a>
       </div>
     </section>
   );
