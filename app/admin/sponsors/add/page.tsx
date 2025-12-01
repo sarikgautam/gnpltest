@@ -1,14 +1,13 @@
 "use client";
 
+import AdminGuard from "@/components/admin/AdminGuard";
 import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
-export default function AddSponsor() {
-  const [sponsor, setSponsor] = useState({
+function AddSponsorPage() {
+  const [form, setForm] = useState({
     name: "",
     category: "",
     logo: "",
@@ -17,81 +16,70 @@ export default function AddSponsor() {
 
   const [loading, setLoading] = useState(false);
 
-  const saveSponsor = async () => {
+  const handleSubmit = async () => {
     setLoading(true);
 
-    const { error } = await supabase.from("sponsors").insert(sponsor);
+    const { error } = await supabase.from("sponsors").insert({
+      name: form.name,
+      category: form.category,
+      logo: form.logo,
+      link: form.link,
+      created: new Date().toISOString(),
+    });
 
     setLoading(false);
 
-    if (!error) {
-      alert("Sponsor added!");
-      window.location.href = "/admin/sponsors";
-    }
+    if (error) alert(error.message);
+    else alert("Sponsor added!");
   };
 
-  const categories = [
-    "Title Sponsor",
-    "Gold Sponsor",
-    "Silver Sponsor",
-    "Bronze Sponsor",
-    "Partner",
-    "Supporter",
-  ];
-
   return (
-    <div className="max-w-3xl mx-auto mt-10">
-      <Card>
-        <CardHeader>
-          <CardTitle>Add Sponsor</CardTitle>
-        </CardHeader>
+    <div className="max-w-xl mx-auto py-10 text-white">
+      <h1 className="text-3xl font-bold text-green-400 mb-6">
+        Add Sponsor
+      </h1>
 
-        <CardContent className="space-y-6">
+      <div className="space-y-4">
+        <Input
+          placeholder="Name"
+          value={form.name}
+          onChange={(e) => setForm({ ...form, name: e.target.value })}
+        />
 
-          <Input
-            placeholder="Sponsor Name"
-            onChange={(e) =>
-              setSponsor({ ...sponsor, name: e.target.value })
-            }
-          />
+        <Input
+          placeholder="Category"
+          value={form.category}
+          onChange={(e) => setForm({ ...form, category: e.target.value })}
+        />
 
-          <div>
-            <label className="text-sm font-medium">Category</label>
-            <select
-              className="border rounded p-2 w-full"
-              onChange={(e) =>
-                setSponsor({ ...sponsor, category: e.target.value })
-              }
-            >
-              <option value="">Select Category</option>
-              {categories.map((c) => (
-                <option value={c} key={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
+        <Input
+          placeholder="Logo URL"
+          value={form.logo}
+          onChange={(e) => setForm({ ...form, logo: e.target.value })}
+        />
 
-          <Input
-            placeholder="Logo URL"
-            onChange={(e) =>
-              setSponsor({ ...sponsor, logo: e.target.value })
-            }
-          />
+        <Input
+          placeholder="Link (optional)"
+          value={form.link}
+          onChange={(e) => setForm({ ...form, link: e.target.value })}
+        />
 
-          <Input
-            placeholder="Website Link (optional)"
-            onChange={(e) =>
-              setSponsor({ ...sponsor, link: e.target.value })
-            }
-          />
-
-          <Button onClick={saveSponsor} disabled={loading}>
-            {loading ? "Saving..." : "Save Sponsor"}
-          </Button>
-
-        </CardContent>
-      </Card>
+        <Button
+          onClick={handleSubmit}
+          disabled={loading}
+          className="bg-green-500 text-black"
+        >
+          {loading ? "Saving..." : "Save Sponsor"}
+        </Button>
+      </div>
     </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <AdminGuard>
+      <AddSponsorPage />
+    </AdminGuard>
   );
 }

@@ -1,124 +1,55 @@
 "use client";
 
+import AdminGuard from "@/components/admin/AdminGuard";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 
-export default function GalleryPage() {
+function GalleryAdminPage() {
   const [images, setImages] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
 
   const fetchGallery = async () => {
-    const { data, error } = await supabase
-      .from("gallery")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (!error) setImages(data || []);
-    setLoading(false);
+    const { data } = await supabase.from("gallery").select("*");
+    setImages(data || []);
   };
 
   useEffect(() => {
     fetchGallery();
   }, []);
 
-  const deleteImage = async (img: any) => {
-    const ok = confirm("Are you sure you want to delete this image?");
-    if (!ok) return;
-
-    // Delete from Supabase Storage (if uploaded)
-    if (img.url.includes("supabase")) {
-      try {
-        const filePath = img.url.split("/gnpl-gallery/")[1];
-        await supabase.storage.from("gnpl-gallery").remove([filePath]);
-      } catch (err) {
-        console.error("Storage delete error:", err);
-      }
-    }
-
-    // Delete record from database
-    await supabase.from("gallery").delete().eq("id", img.id);
-
-    alert("Image deleted");
-    fetchGallery();
-  };
-
-  if (loading) return <div className="p-10">Loading gallery…</div>;
-
   return (
-    <div className="max-w-7xl mx-auto mt-10">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Gallery</h1>
+    <div className="max-w-6xl mx-auto py-10 text-white">
+      <h1 className="text-3xl font-bold text-green-400 mb-6">
+        Gallery
+      </h1>
 
-        <Button asChild>
-          <a href="/admin/gallery/add">Add Images</a>
-        </Button>
-      </div>
+      <a
+        href="/admin/gallery/add"
+        className="px-4 py-2 bg-green-500 text-black rounded-md mb-6 inline-block"
+      >
+        Add Image
+      </a>
 
-      {/* IMAGE GRID */}
-      <div className="grid md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {images.map((img) => (
-          <Card key={img.id}>
-            <CardContent className="p-2">
-
-              {/* Image */}
-              <img
-                src={img.url}
-                alt={img.title || "GNPL Image"}
-                className="w-full h-40 object-cover rounded"
-              />
-
-              {/* Title */}
-              {img.title && (
-                <p className="font-semibold mt-2">{img.title}</p>
-              )}
-
-              {/* Caption */}
-              {img.caption && (
-                <p className="text-sm text-gray-500">{img.caption}</p>
-              )}
-
-              {/* Category */}
-              {img.category && (
-                <p className="text-xs text-blue-600 mt-1">
-                  {img.category}
-                </p>
-              )}
-
-              {/* Buttons */}
-              <div className="flex justify-between mt-3">
-
-                {/* EDIT */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  asChild
-                >
-                  <a href={`/admin/gallery/${img.id}/edit`}>Edit</a>
-                </Button>
-
-                {/* DELETE */}
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => deleteImage(img)}
-                >
-                  Delete
-                </Button>
-
-              </div>
-
-            </CardContent>
-          </Card>
+          <div
+            key={img.id}
+            className="bg-white/10 p-2 rounded-xl backdrop-blur-md border border-white/20"
+          >
+            <img
+              src={img.url}
+              className="w-full h-40 object-cover rounded-lg"
+            />
+          </div>
         ))}
       </div>
-
-      {images.length === 0 && (
-        <p className="text-center text-gray-500 mt-10">
-          No images in gallery. Add some!
-        </p>
-      )}
     </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <AdminGuard>
+      <GalleryAdminPage />
+    </AdminGuard>
   );
 }

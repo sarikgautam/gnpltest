@@ -3,62 +3,73 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
+interface Sponsor {
+  id: string;
+  name: string;
+  category: string;
+  logo: string;
+  link?: string;
+}
+
 export default function SponsorsSection() {
-  const [sponsors, setSponsors] = useState<any[]>([]);
+  const [sponsors, setSponsors] = useState<Sponsor[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const fetchSponsors = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("sponsors")
       .select("*")
       .order("created", { ascending: false });
 
-    if (data) setSponsors(data);
+    if (!error && data) setSponsors(data as Sponsor[]);
+    setLoading(false);
   };
 
   useEffect(() => {
     fetchSponsors();
   }, []);
 
+  if (loading) {
+    return (
+      <section className="max-w-7xl mx-auto px-4 py-10 text-center">
+        <h2 className="text-3xl font-bold mb-4 text-gnpl-green">Sponsors</h2>
+        <p className="text-gray-500">Loading sponsors...</p>
+      </section>
+    );
+  }
+
+  if (!sponsors.length) {
+    return (
+      <section className="max-w-7xl mx-auto px-4 py-10 text-center">
+        <h2 className="text-3xl font-bold mb-4 text-gnpl-green">Sponsors</h2>
+        <p className="text-gray-500">No sponsors added yet.</p>
+      </section>
+    );
+  }
+
   return (
-    <section className="max-w-7xl mx-auto px-4 mt-24 mb-20">
-      <h2 className="text-3xl font-bold text-center text-green-400 mb-12">
-        Sponsors
+    <section className="max-w-7xl mx-auto px-4 py-16">
+      <h2 className="text-3xl font-bold text-center mb-10 text-gnpl-green">
+        Our Sponsors
       </h2>
 
-      {sponsors.length === 0 && (
-        <p className="text-center text-gray-400">No sponsors added yet.</p>
-      )}
-
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-10">
-        {sponsors.map((s) => (
-          <div
-            key={s.id}
-            className="backdrop-blur-xl bg-black/20 border border-white/20 
-                       p-4 rounded-xl shadow-lg hover:shadow-2xl
-                       transition-all hover:border-green-400"
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 place-items-center">
+        {sponsors.map((sponsor) => (
+          <a
+            key={sponsor.id}
+            href={sponsor.link || "#"}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-4 bg-white/10 backdrop-blur-md rounded-xl shadow-lg hover:scale-[1.06] transition-all border border-white/20 w-full flex flex-col items-center"
           >
             <img
-              src={s.logo}
-              alt={s.name}
-              className="w-full h-32 object-contain 
-                         drop-shadow-[0_0_15px_rgba(0,255,140,0.5)]"
+              src={sponsor.logo}
+              alt={sponsor.name}
+              className="w-32 h-32 object-contain mb-3"
             />
-
-            <p className="text-center mt-3 font-semibold">{s.name}</p>
-            <p className="text-center text-sm text-gray-400 capitalize">
-              {s.category}
-            </p>
-
-            {s.link && (
-              <a
-                href={s.link}
-                target="_blank"
-                className="text-green-400 underline text-center block mt-2 text-sm"
-              >
-                Visit Website
-              </a>
-            )}
-          </div>
+            <h3 className="text-white font-semibold">{sponsor.name}</h3>
+            <p className="text-gray-300 text-sm">{sponsor.category}</p>
+          </a>
         ))}
       </div>
     </section>

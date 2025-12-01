@@ -1,90 +1,137 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import AdminGuard from "@/components/admin/AdminGuard";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import {
+  Users,
+  CalendarDays,
+  Trophy,
+  Image,
+  Building2,
+  ClipboardList,
+  Settings,
+} from "lucide-react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { Card } from "@/components/ui/card";
 
-export default function TeamsPage() {
-  const [teams, setTeams] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+function AdminDashboard() {
+  const [stats, setStats] = useState({
+    teams: 0,
+    fixtures: 0,
+    results: 0,
+    sponsors: 0,
+    gallery: 0,
+  });
 
-  const fetchTeams = async () => {
-    const { data } = await supabase.from("teams").select("*").order("name");
-    if (data) setTeams(data);
-    setLoading(false);
+  const fetchStats = async () => {
+    const tables = ["teams", "fixtures", "results", "sponsors", "gallery"];
+    const resultsData: any = {};
+
+    for (let table of tables) {
+      const { count } = await supabase
+        .from(table)
+        .select("*", { count: "exact", head: true });
+      resultsData[table] = count || 0;
+    }
+
+    setStats({
+      teams: resultsData["teams"],
+      fixtures: resultsData["fixtures"],
+      results: resultsData["results"],
+      sponsors: resultsData["sponsors"],
+      gallery: resultsData["gallery"],
+    });
   };
 
   useEffect(() => {
-    fetchTeams();
+    fetchStats();
   }, []);
 
-  if (loading) {
-    return <p className="text-center py-20 text-gray-400">Loading teams…</p>;
-  }
+  const menu = [
+    {
+      title: "Teams",
+      href: "/admin/teams",
+      icon: <Users className="h-8 w-8 text-green-400" />,
+      count: stats.teams,
+    },
+    {
+      title: "Fixtures",
+      href: "/admin/fixtures",
+      icon: <CalendarDays className="h-8 w-8 text-green-400" />,
+      count: stats.fixtures,
+    },
+    {
+      title: "Results",
+      href: "/admin/results",
+      icon: <Trophy className="h-8 w-8 text-green-400" />,
+      count: stats.results,
+    },
+    {
+      title: "Gallery",
+      href: "/admin/gallery",
+      icon: <Image className="h-8 w-8 text-green-400" />,
+      count: stats.gallery,
+    },
+    {
+      title: "Sponsors",
+      href: "/admin/sponsors",
+      icon: <Building2 className="h-8 w-8 text-green-400" />,
+      count: stats.sponsors,
+    },
+    {
+      title: "Season Settings",
+      href: "/admin/season",
+      icon: <Settings className="h-8 w-8 text-green-400" />,
+      count: null,
+    },
+  ];
 
   return (
-    <section className="max-w-7xl mx-auto px-4 py-16">
-      <h1 className="text-4xl font-extrabold text-center mb-12 text-white tracking-wide">
-        GNPL Teams
+    <div className="min-h-screen bg-gradient-to-br from-black via-slate-900 to-black py-10 px-6">
+      <h1 className="text-4xl font-extrabold text-green-400 text-center mb-10 drop-shadow-lg">
+        GNPL Admin Dashboard
       </h1>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {teams.map((team) => (
-          <Card
-            key={team.id}
-            className="
-              bg-black/30 border border-white/10 
-              rounded-xl overflow-hidden shadow-xl backdrop-blur-lg
-              hover:scale-[1.02] transition-transform
-            "
-          >
-            {/* Header Background */}
-            <div
-              className="h-32 bg-cover bg-center relative"
-              style={{ backgroundImage: `url(${team.banner || "/hero.jpg"})` }}
-            >
-              <div className="absolute inset-0 bg-black/50" />
-              <img
-                src={team.logo}
-                alt={team.name}
-                className="absolute bottom-[-40px] left-1/2 -translate-x-1/2 
-                           w-20 h-20 rounded-full border-4 border-black shadow-xl object-cover"
-              />
-            </div>
+      <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {menu.map((item) => (
+          <Link key={item.title} href={item.href}>
+            <Card className="bg-white/10 border border-white/20 backdrop-blur-xl shadow-lg hover:shadow-green-500/20 hover:scale-[1.03] transition-all cursor-pointer">
+              <CardHeader className="flex items-center space-x-4">
+                {item.icon}
+                <CardTitle className="text-white text-xl">
+                  {item.title}
+                </CardTitle>
+              </CardHeader>
 
-            <div className="pt-12 pb-6 px-6 text-center">
-              <h2 className="text-xl font-bold text-white">{team.name}</h2>
-
-              <p className="text-gray-400 text-sm mt-2">{team.short_desc}</p>
-
-              <div className="mt-4 flex flex-col gap-1 text-sm text-gray-300">
-                <p>
-                  <span className="font-semibold text-green-300">Captain:</span>{" "}
-                  {team.captain || "TBA"}
-                </p>
-                <p>
-                  <span className="font-semibold text-green-300">Owner:</span>{" "}
-                  {team.owner || "TBA"}
-                </p>
-                <p>
-                  <span className="font-semibold text-green-300">Manager:</span>{" "}
-                  {team.manager || "TBA"}
-                </p>
-              </div>
-
-              <Link
-                href={`/teams/${team.id}`}
-                className="inline-block mt-6 px-6 py-2 rounded-full 
-                         bg-green-400 text-black font-semibold 
-                         hover:bg-green-300 transition-all shadow-md"
-              >
-                View Squad
-              </Link>
-            </div>
-          </Card>
+              <CardContent className="text-gray-300 text-sm">
+                {item.count !== null ? (
+                  <p className="text-green-300 font-semibold text-lg">
+                    Total: {item.count}
+                  </p>
+                ) : (
+                  <p className="text-gray-400">Configure season settings</p>
+                )}
+              </CardContent>
+            </Card>
+          </Link>
         ))}
       </div>
-    </section>
+
+      <div className="mt-16 max-w-4xl mx-auto text-center text-gray-400">
+        <p className="text-lg">
+          Welcome to the Gold Coast Nepalese Premier League admin panel.  
+          Manage everything from here — teams, fixtures, results, sponsors, gallery and more.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <AdminGuard>
+      <AdminDashboard />
+    </AdminGuard>
   );
 }
