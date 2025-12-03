@@ -1,175 +1,177 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import AdminGuard from "@/components/admin/AdminGuard";
 import { supabase } from "@/lib/supabaseClient";
-
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
 
-export default function TeamPage() {
+type Team = {
+  id: string;
+  name: string;
+  logo: string;
+  captain: string;
+  owner: string;
+  last_season_rank: string;
+  description: string | null;
+};
+
+export default function EditTeamPage() {
   const params = useParams();
-  const teamId = params.id;
+  const router = useRouter();
+  const teamId = params.id as string;
 
-  const [team, setTeam] = useState<any>(null);
+  const [team, setTeam] = useState<Team | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchTeam = async () => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("teams")
       .select("*")
       .eq("id", teamId)
       .single();
 
-    if (!error) {
-      setTeam(data);
-    }
-
+    setTeam(data as Team);
     setLoading(false);
   };
 
+  const uploadLogo = async () => {
+    if (!logoFile) return team?.logo ?? "";
+
+    const fileName = `team_${Date.now()}.png`;
+
+    const { error } = await supabase.storage
+      .from("team-logos")
+      .upload(fileName, logoFile);
+
+    if (error) {
+      alert("Error uploading logo");
+      return team?.logo ?? "";
+    }
+
+    const url =
+      supabase.storage.from("team-logos").getPublicUrl(fileName).data.publicUrl;
+
+    return url;
+  };
+
+  const saveTeam = async () => {
+    if (!team) return;
+
+    let uploadedLogo = team.logo;
+    if (logoFile) uploadedLogo = await uploadLogo();
+
+    const { error } = await supabase
+      .from("teams")
+      .update({
+        name: team.name,
+        caption: team.captain,
+        owner: team.owner,
+        last_season_rank: team.last_season_rank,
+        description: team.description,
+        logo: uploadedLogo,
+      })
+      .eq("id", teamId);
+
+    if (error) alert(error.message);
+    else {
+      alert("Team updated!");
+      router.push("/admin/teams");
+    }
+  };
+
   useEffect(() => {
-    if (teamId) fetchTeam();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teamId]);
+    fetchTeam();
+  }, []);
 
-  if (loading) {
+  if (loading || !team) {
     return (
-      <div className="max-w-4xl mx-auto mt-20">
-        <p>Loading team…</p>
-      </div>
+      <AdminGuard>
+        <div className="text-center text-gray-300 mt-20">Loading…</div>
+      </AdminGuard>
     );
   }
-
-  if (!team) {
-    return (
-      <div className="max-w-4xl mx-auto mt-20">
-        <p className="text-red-500">Team not found.</p>
-      </div>
-    );
-  }
-
-  // Squad: convert multiline text → list
-  const squadList = team.squad_text
-    ? team.squad_text.split("\n").filter((p: string) => p.trim().length > 0)
-    : [];
-
-  const socials = team.socials || {};
 
   return (
-    <div className="max-w-5xl mx-auto px-4 mt-10 pb-20">
-      {/* TEAM HEADER */}
-      <Card className="shadow-md">
-        <CardHeader className="flex flex-col items-center">
-          
-          <img
-            src={team.logo}
-            alt={team.name}
-            className="w-32 h-32 rounded-full border object-cover"
-          />
+    <AdminGuard>
+      <div className="max-w-3xl mx-auto mt-10 text-white">
+        <h1 className="text-3xl font-bold text-green-400 mb-6">
+          Edit Team – {team.name}
+        </h1>
 
-          <h1 className="text-3xl font-bold mt-4">{team.name}</h1>
+        <div className="p-6 bg-white/10 border border-white/20 backdrop-blur-md rounded-xl space-y-4">
 
-          <p className="text-gray-600 mt-1">
-            {team.description || "No description available."}
-          </p>
+          <div>
+            <label className="block text-sm text-gray-300">Team Name</label>
+            <input
+              value={team.name}
+              onChange={(e) => setTeam({ ...team, name: e.target.value })}
+              className="input-style"
+            />
+          </div>
 
-          {team.last_season_rank && (
-            <p className="text-sm text-gray-500 mt-3">
-              Last Season Rank: {team.last_season_rank}
-            </p>
-          )}
+          <div>
+            <label className="block text-sm text-gray-300">Captain</label>
+            <input
+              value={team.captain}
+              onChange={(e) => setTeam({ ...team, captain: e.target.value })}
+              className="input-style"
+            />
+          </div>
 
-        </CardHeader>
-      </Card>
+          <div>
+            <label className="block text-sm text-gray-300">Owner</label>
+            <input
+              value={team.owner}
+              onChange={(e) => setTeam({ ...team, owner: e.target.value })}
+              className="input-style"
+            />
+          </div>
 
-      <Separator className="my-10" />
+          <div>
+            <label className="block text-sm text-gray-300">Last Season Rank</label>
+            <input
+              value={team.last_season_rank}
+              onChange={(e) =>
+                setTeam({ ...team, last_season_rank: e.target.value })
+              }
+              className="input-style"
+            />
+          </div>
 
-      {/* TEAM DETAILS */}
-      <Card className="shadow-sm">
-        <CardHeader>
-          <h2 className="text-xl font-semibold">Team Management</h2>
-        </CardHeader>
+          <div>
+            <label className="block text-sm text-gray-300">Description</label>
+            <textarea
+              value={team.description ?? ""}
+              onChange={(e) =>
+                setTeam({ ...team, description: e.target.value })
+              }
+              className="input-style h-24"
+            />
+          </div>
 
-        <CardContent className="space-y-2">
-          <p><strong>Captain:</strong> {team.captain || "N/A"}</p>
-          <p><strong>Owner:</strong> {team.owner || "N/A"}</p>
-          <p><strong>Manager:</strong> {team.manager || "N/A"}</p>
-        </CardContent>
-      </Card>
+          <div>
+            <label className="block text-sm text-gray-300">Logo</label>
+            <input
+              type="file"
+              onChange={(e) => setLogoFile(e.target.files?.[0] || null)}
+              className="text-white mt-1"
+            />
+            <img
+              src={team.logo}
+              className="h-20 mt-3 rounded-md object-contain"
+            />
+          </div>
 
-      <Separator className="my-10" />
-
-      {/* SQUAD SECTION */}
-      <Card className="shadow-sm">
-        <CardHeader>
-          <h2 className="text-xl font-semibold">Squad</h2>
-        </CardHeader>
-
-        <CardContent>
-          {squadList.length === 0 ? (
-            <p>No squad added yet.</p>
-          ) : (
-            <ul className="list-disc pl-5 space-y-1">
-              {squadList.map((player: string, index: number) => (
-                <li key={index}>{player}</li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
-
-      <Separator className="my-10" />
-
-      {/* SOCIAL LINKS */}
-      <Card className="shadow-sm">
-        <CardHeader>
-          <h2 className="text-xl font-semibold">Social Links</h2>
-        </CardHeader>
-
-        <CardContent className="space-y-3">
-          {socials.facebook && (
-            <Button variant="outline" asChild>
-              <Link href={socials.facebook} target="_blank">
-                Facebook
-              </Link>
-            </Button>
-          )}
-
-          {socials.instagram && (
-            <Button variant="outline" asChild>
-              <Link href={socials.instagram} target="_blank">
-                Instagram
-              </Link>
-            </Button>
-          )}
-
-          {socials.twitter && (
-            <Button variant="outline" asChild>
-              <Link href={socials.twitter} target="_blank">
-                Twitter/X
-              </Link>
-            </Button>
-          )}
-
-          {socials.website && (
-            <Button variant="outline" asChild>
-              <Link href={socials.website} target="_blank">
-                Website
-              </Link>
-            </Button>
-          )}
-
-          {!socials.facebook &&
-            !socials.instagram &&
-            !socials.twitter &&
-            !socials.website && (
-              <p className="text-gray-500">No social links added.</p>
-            )}
-        </CardContent>
-      </Card>
-    </div>
+          <Button
+            onClick={saveTeam}
+            className="w-full bg-green-500 hover:bg-green-400 text-black font-semibold"
+          >
+            Save Changes
+          </Button>
+        </div>
+      </div>
+    </AdminGuard>
   );
 }

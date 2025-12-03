@@ -2,162 +2,102 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-// ---------- TYPES ----------
-interface Team {
-  id: string;
-  name: string;
-}
+export default function FixturesPage() {
+  const [fixtures, setFixtures] = useState<any[]>([]);
+  const [teams, setTeams] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-interface Fixture {
-  id: string;
-  match_no: string;
-  team_a: string;
-  team_b: string;
-  venue: string;
-  date_time: string;
-  status: string;
-}
+  // Fetch Data
+  const fetchData = async () => {
+    const { data: teamData } = await supabase.from("teams").select("*");
 
-// ---------- PAGE ----------
-export default function FixturesAdminPage() {
-  // IMPORTANT: FIXED TYPE DEFINITIONS
-  const [fixtures, setFixtures] = useState<Fixture[]>([]);
-  const [teams, setTeams] = useState<Team[]>([]);
+    const { data: fixtureData } = await supabase
+      .from("fixtures")
+      .select("*")
+      .order("date_time", { ascending: true });
 
-  const [matchNo, setMatchNo] = useState<string>("");
-  const [teamA, setTeamA] = useState<string>("");
-  const [teamB, setTeamB] = useState<string>("");
-  const [venue, setVenue] = useState<string>("");
-  const [dateTime, setDateTime] = useState<string>("");
-
-  const [loading, setLoading] = useState<boolean>(false);
-
-  // ---------- FETCH FIXTURES ----------
-  const fetchFixtures = async (): Promise<void> => {
-    const { data } = await supabase.from("fixtures").select("*").order("date_time");
-    setFixtures((data as Fixture[]) ?? []);
-  };
-
-  // ---------- FETCH TEAMS ----------
-  const fetchTeams = async (): Promise<void> => {
-    const { data } = await supabase.from("teams").select("*");
-    setTeams((data as Team[]) ?? []);
+    setTeams(teamData || []);
+    setFixtures(fixtureData || []);
+    setLoading(false);
   };
 
   useEffect(() => {
-    fetchFixtures();
-    fetchTeams();
+    fetchData();
   }, []);
 
-  // ---------- ADD FIXTURE ----------
-  const addFixture = async (): Promise<void> => {
-    if (!matchNo || !teamA || !teamB || !venue || !dateTime) {
-      alert("Fill all fields");
-      return;
-    }
+  const getTeam = (id: string) => teams.find((t) => t.id === id);
 
-    setLoading(true);
-
-    await supabase.from("fixtures").insert([
-      {
-        match_no: matchNo,
-        team_a: teamA,
-        team_b: teamB,
-        venue,
-        date_time: dateTime,
-        status: "upcoming",
-      },
-    ]);
-
-    setLoading(false);
-
-    // Reset fields
-    setMatchNo("");
-    setTeamA("");
-    setTeamB("");
-    setVenue("");
-    setDateTime("");
-
-    fetchFixtures();
-  };
+  if (loading) {
+    return (
+      <div className="text-center text-white mt-20">Loading fixtures...</div>
+    );
+  }
 
   return (
-    <div className="max-w-4xl mx-auto p-6 text-white">
-      <h1 className="text-3xl font-bold mb-6 text-green-400">Manage Fixtures</h1>
+    <div className="max-w-6xl mx-auto px-4 mt-20">
+      <h1 className="text-4xl font-bold text-green-400 text-center mb-10">
+        All Fixtures
+      </h1>
 
-      {/* ADD FIXTURE FORM */}
-      <div className="glass-card p-6 rounded-xl mb-12 border border-white/20 bg-black/30">
-        <h2 className="text-xl font-semibold mb-4">Add Fixture</h2>
+      <div className="grid md:grid-cols-2 gap-8">
+        {fixtures.map((match) => {
+          const teamA = getTeam(match.team_a);
+          const teamB = getTeam(match.team_b);
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <input
-            className="input"
-            placeholder="Match No"
-            value={matchNo}
-            onChange={(e) => setMatchNo(e.target.value)}
-          />
+          return (
+            <Card
+              key={match.id}
+              className="bg-white/10 backdrop-blur-xl border border-white/20 shadow-xl p-6 rounded-2xl"
+            >
+              {/* Match Info */}
+              <p className="text-gray-300 text-sm mb-2">
+                Match #{match.match_no} • {match.stage} • {match.overs || 20} overs
+              </p>
 
-          <select className="input" value={teamA} onChange={(e) => setTeamA(e.target.value)}>
-            <option value="">Team A</option>
-            {teams.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
+              <p className="font-semibold text-green-300 mb-1">
+                {new Date(match.date_time).toLocaleString("en-AU")}
+              </p>
 
-          <select className="input" value={teamB} onChange={(e) => setTeamB(e.target.value)}>
-            <option value="">Team B</option>
-            {teams.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
+              <p className="text-sm text-gray-400 mb-4">{match.venue}</p>
 
-          <input
-            className="input"
-            placeholder="Venue"
-            value={venue}
-            onChange={(e) => setVenue(e.target.value)}
-          />
+              {/* Teams */}
+              <div className="flex items-center justify-between mb-4">
+                {/* Team A */}
+                <div className="flex flex-col items-center">
+                  <img
+                    src={teamA?.logo}
+                    className="w-16 h-16 object-contain"
+                    alt={teamA?.name}
+                  />
+                  <p className="text-white mt-2">{teamA?.name}</p>
+                </div>
 
-          <input
-            className="input"
-            type="datetime-local"
-            value={dateTime}
-            onChange={(e) => setDateTime(e.target.value)}
-          />
-        </div>
+                <span className="text-white font-semibold text-xl">VS</span>
 
-        <Button
-          onClick={addFixture}
-          className="w-full mt-4 bg-green-400 text-black hover:bg-green-300"
-        >
-          {loading ? "Saving..." : "Add Fixture"}
-        </Button>
-      </div>
+                {/* Team B */}
+                <div className="flex flex-col items-center">
+                  <img
+                    src={teamB?.logo}
+                    className="w-16 h-16 object-contain"
+                    alt={teamB?.name}
+                  />
+                  <p className="text-white mt-2">{teamB?.name}</p>
+                </div>
+              </div>
 
-      {/* LIST FIXTURES */}
-      <h2 className="text-xl font-semibold mb-4 text-green-300">Existing Fixtures</h2>
-
-      {fixtures.length === 0 && <p className="text-gray-400">No fixtures added yet.</p>}
-
-      <div className="space-y-4">
-        {fixtures.map((f) => (
-          <div
-            key={f.id}
-            className="backdrop-blur-xl bg-black/20 border border-white/20 p-4 rounded-xl shadow-xl"
-          >
-            <p className="font-semibold text-lg">Match #{f.match_no}</p>
-            <p className="text-sm">{f.venue}</p>
-            <p className="text-sm text-gray-400">
-              {new Date(f.date_time).toLocaleString("en-AU")}
-            </p>
-          </div>
-        ))}
+              {/* View Button */}
+              <Button
+                asChild
+                className="w-full bg-green-500 hover:bg-green-400 text-black"
+              >
+                <a href={`/fixtures/${match.id}`}>View Fixture</a>
+              </Button>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );

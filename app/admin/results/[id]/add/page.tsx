@@ -2,262 +2,292 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import AdminGuard from "@/components/admin/AdminGuard";
 import { supabase } from "@/lib/supabaseClient";
-
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 
-export default function AddResultPage() {
+type Fixture = {
+  id: string;
+  match_no: number;
+  team_a: string | null;
+  team_b: string | null;
+  stage: string;
+  overs: number | null;
+};
+
+type Team = {
+  id: string;
+  name: string;
+};
+
+type Result = {
+  id: string;
+  match_id: string;
+  winner: string | null;
+  score_summary: string | null;
+  team_a_runs: number | null;
+  team_a_wickets: number | null;
+  team_a_overs: string | number | null;
+  team_b_runs: number | null;
+  team_b_wickets: number | null;
+  team_b_overs: string | number | null;
+  player_of_match: string | null;
+};
+
+function EditResultInner() {
   const params = useParams();
   const router = useRouter();
-  const matchId = params.id;
+  const resultId = params.id as string;
 
-  const [match, setMatch] = useState<any>(null);
-  const [teams, setTeams] = useState<any[]>([]);
-  const [players, setPlayers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [fixtures, setFixtures] = useState<Fixture[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [result, setResult] = useState<Result | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  /** TEAM SCORES (Auto JSON Builder Inputs) */
-  const [teamAStats, setTeamAStats] = useState({
-    runs: "",
-    wickets: "",
-    overs: "",
-  });
-
-  const [teamBStats, setTeamBStats] = useState({
-    runs: "",
-    wickets: "",
-    overs: "",
-  });
-
-  /** MAIN RESULT FIELDS */
-  const [result, setResult] = useState({
-    winner: "",
-    score_summary: "",
-    player_of_match: "",
-    commentary: "",
-  });
-
-  /** Convert 19.4 → 19.6666 automatically */
-  const convertOvers = (val: string) => {
-    if (!val.includes(".")) return Number(val);
-
-    const [ov, balls] = val.split(".");
-    const o = Number(ov);
-    const b = Number(balls);
-
-    // Valid balls are 0–5
-    if (b < 0 || b > 5) return Number(o);
-
-    return Number(o) + b / 6;
-  };
-
-  /** FETCH MATCH, TEAMS, PLAYERS */
   const fetchData = async () => {
-    const { data: fixture } = await supabase
-      .from("fixtures")
+    const { data: resData } = await supabase
+      .from("results")
       .select("*")
-      .eq("id", matchId)
+      .eq("id", resultId)
       .single();
 
-    const { data: teamsData } = await supabase.from("teams").select("*");
-    const { data: playersData } = await supabase.from("players").select("*");
+    setResult(resData as Result);
 
-    setMatch(fixture);
-    setTeams(teamsData || []);
-    setPlayers(playersData || []);
+    const { data: fixturesData } = await supabase
+      .from("fixtures")
+      .select("*")
+      .order("match_no", { ascending: true });
+
+    const { data: teamsData } = await supabase
+      .from("teams")
+      .select("id,name");
+
+    setFixtures((fixturesData || []) as Fixture[]);
+    setTeams((teamsData || []) as Team[]);
   };
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  /** HANDLE SAVE RESULT */
-  const saveResult = async () => {
-    setLoading(true);
+  const inputClass =
+    "w-full rounded-lg bg-white/10 border border-white/25 px-3 py-2 text-sm text-white";
 
-    // Build the JSON automatically
-    const jsonData = {
-      team_a: {
-        runs: Number(teamAStats.runs),
-        wickets: Number(teamAStats.wickets),
-        overs: convertOvers(teamAStats.overs),
-      },
-      team_b: {
-        runs: Number(teamBStats.runs),
-        wickets: Number(teamBStats.wickets),
-        overs: convertOvers(teamBStats.overs),
-      },
-    };
-
-    /** INSERT INTO RESULTS */
-    const { error } = await supabase.from("results").insert({
-      match_id: matchId,
-      winner: result.winner,
-      score_summary: result.score_summary,
-      player_of_match: result.player_of_match || null,
-      runs_wickets: jsonData,
-      commentary: result.commentary,
-    });
-
-    if (error) {
-      alert("Error saving result: " + error.message);
-      setLoading(false);
-      return;
-    }
-
-    /** UPDATE FIXTURE STATUS TO COMPLETED */
-    await supabase
-      .from("fixtures")
-      .update({ status: "completed" })
-      .eq("id", matchId);
-
-    alert("Result added successfully!");
-    router.push("/admin/results");
+  const handleChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >
+  ) => {
+    if (!result) return;
+    setResult({ ...result, [e.target.name]: e.target.value } as Result);
   };
 
-  if (!match)
-    return <div className="p-10 text-center">Loading match…</div>;
+  const getFixture = (id: string) =>
+    fixtures.find((f) => f.id === id);
 
-  const teamA = teams.find((t) => t.id === match.team_a);
-  const teamB = teams.find((t) => t.id === match.team_b);
+  const getTeamName = (id: string | null) =>
+    id ? teams.find((t) => t.id === id)?.name ?? "" : "";
+
+  const saveResult = async () => {
+    if (!result) return;
+
+    setSaving(true);
+
+    const { error } = await supabase
+      .from("results")
+      .update({
+        match_id: result.match_id,
+        winner: result.winner || null,
+        score_summary: result.score_summary || null,
+        team_a_runs: result.team_a_runs,
+        team_a_wickets: result.team_a_wickets,
+        team_a_overs: result.team_a_overs,
+        team_b_runs: result.team_b_runs,
+        team_b_wickets: result.team_b_wickets,
+        team_b_overs: result.team_b_overs,
+        player_of_match: result.player_of_match || null,
+      })
+      .eq("id", resultId);
+
+    setSaving(false);
+
+    if (error) {
+      alert(error.message);
+    } else {
+      alert("Result updated!");
+      router.push("/admin/results");
+    }
+  };
+
+  if (!result) {
+    return (
+      <div className="text-center text-gray-300 mt-20">Loading…</div>
+    );
+  }
+
+  const selectedFixture = getFixture(result.match_id);
 
   return (
-    <div className="max-w-3xl mx-auto mt-10">
-      <Card>
-        <CardHeader>
-          <CardTitle>Add Result – Match #{match.match_no}</CardTitle>
-        </CardHeader>
+    <div className="max-w-3xl mx-auto mt-10 text-white px-4">
+      <h1 className="text-3xl font-bold text-green-400 mb-6">
+        Edit Result
+      </h1>
 
-        <CardContent className="space-y-6">
+      <div className="p-6 bg-white/10 border border-white/20 rounded-xl backdrop-blur-lg space-y-4">
+        <div>
+          <label className="text-sm text-gray-300">Match</label>
+          <select
+            name="match_id"
+            value={result.match_id}
+            onChange={handleChange}
+            className={inputClass}
+          >
+            <option value="">Select match</option>
+            {fixtures.map((f) => (
+              <option key={f.id} value={f.id}>
+                Match #{f.match_no} – {getTeamName(f.team_a)} vs{" "}
+                {getTeamName(f.team_b)} ({f.stage}, {f.overs || 20} overs)
+              </option>
+            ))}
+          </select>
+        </div>
 
-          {/* WINNER */}
-          <div>
-            <label className="text-sm font-semibold">Winner</label>
-            <select
-              className="border p-2 rounded w-full"
-              value={result.winner}
-              onChange={(e) =>
-                setResult({ ...result, winner: e.target.value })
-              }
-            >
-              <option value="">Select winner</option>
-              <option value={teamA?.id}>{teamA?.name}</option>
-              <option value={teamB?.id}>{teamB?.name}</option>
-            </select>
+        {selectedFixture && (
+          <div className="text-xs text-gray-300">
+            Stage: {selectedFixture.stage} • Overs: {selectedFixture.overs || 20}
           </div>
+        )}
 
-          {/* SCORE SUMMARY */}
-          <Textarea
-            placeholder="Score Summary (Example: HH 145/8 beat YS by 3 runs)"
-            value={result.score_summary}
-            onChange={(e) =>
-              setResult({ ...result, score_summary: e.target.value })
-            }
+        <div>
+          <label className="text-sm text-gray-300">Winner</label>
+          <select
+            name="winner"
+            value={result.winner ?? ""}
+            onChange={handleChange}
+            className={inputClass}
+          >
+            <option value="">Select winner</option>
+            {selectedFixture && (
+              <>
+                {selectedFixture.team_a && (
+                  <option value={selectedFixture.team_a}>
+                    {getTeamName(selectedFixture.team_a)}
+                  </option>
+                )}
+                {selectedFixture.team_b && (
+                  <option value={selectedFixture.team_b}>
+                    {getTeamName(selectedFixture.team_b)}
+                  </option>
+                )}
+              </>
+            )}
+          </select>
+        </div>
+
+        <div>
+          <label className="text-sm text-gray-300">Score Summary</label>
+          <textarea
+            name="score_summary"
+            value={result.score_summary ?? ""}
+            onChange={handleChange}
+            className={`${inputClass} h-20`}
           />
+        </div>
 
-          {/* PLAYER OF MATCH */}
-          <div>
-            <label className="text-sm font-semibold">Player of Match</label>
-            <select
-              className="border p-2 rounded w-full"
-              value={result.player_of_match}
-              onChange={(e) =>
-                setResult({ ...result, player_of_match: e.target.value })
-              }
-            >
-              <option value="">Select player</option>
-              {players.map((p) => (
-                <option value={p.id} key={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* AUTO JSON BUILDER */}
-          <div className="grid md:grid-cols-2 gap-6 mt-6">
-            {/* TEAM A STATS */}
-            <div className="border rounded p-4">
-              <h3 className="font-bold mb-2 text-center">
-                {teamA?.name} – Team A
-              </h3>
-
-              <Input
-                placeholder="Runs"
-                value={teamAStats.runs}
-                onChange={(e) =>
-                  setTeamAStats({ ...teamAStats, runs: e.target.value })
-                }
-              />
-              <Input
-                placeholder="Wickets"
-                className="mt-2"
-                value={teamAStats.wickets}
-                onChange={(e) =>
-                  setTeamAStats({ ...teamAStats, wickets: e.target.value })
-                }
-              />
-              <Input
-                placeholder="Overs (e.g., 19.4)"
-                className="mt-2"
-                value={teamAStats.overs}
-                onChange={(e) =>
-                  setTeamAStats({ ...teamAStats, overs: e.target.value })
-                }
+        {/* Team A stats */}
+        <div className="border border-white/15 rounded-lg p-3">
+          <p className="text-sm text-green-300 mb-2">Team A Score</p>
+          <div className="grid md:grid-cols-3 gap-3">
+            <div>
+              <label className="text-xs text-gray-300">Runs</label>
+              <input
+                name="team_a_runs"
+                value={result.team_a_runs ?? ""}
+                onChange={handleChange}
+                className={inputClass}
               />
             </div>
-
-            {/* TEAM B STATS */}
-            <div className="border rounded p-4">
-              <h3 className="font-bold mb-2 text-center">
-                {teamB?.name} – Team B
-              </h3>
-
-              <Input
-                placeholder="Runs"
-                value={teamBStats.runs}
-                onChange={(e) =>
-                  setTeamBStats({ ...teamBStats, runs: e.target.value })
-                }
+            <div>
+              <label className="text-xs text-gray-300">Wickets</label>
+              <input
+                name="team_a_wickets"
+                value={result.team_a_wickets ?? ""}
+                onChange={handleChange}
+                className={inputClass}
               />
-              <Input
-                placeholder="Wickets"
-                className="mt-2"
-                value={teamBStats.wickets}
-                onChange={(e) =>
-                  setTeamBStats({ ...teamBStats, wickets: e.target.value })
-                }
-              />
-              <Input
-                placeholder="Overs (e.g., 18.2)"
-                className="mt-2"
-                value={teamBStats.overs}
-                onChange={(e) =>
-                  setTeamBStats({ ...teamBStats, overs: e.target.value })
-                }
+            </div>
+            <div>
+              <label className="text-xs text-gray-300">Overs</label>
+              <input
+                name="team_a_overs"
+                value={result.team_a_overs ?? ""}
+                onChange={handleChange}
+                className={inputClass}
               />
             </div>
           </div>
+        </div>
 
-          {/* COMMENTARY */}
-          <Textarea
-            placeholder="Commentary"
-            value={result.commentary}
-            onChange={(e) =>
-              setResult({ ...result, commentary: e.target.value })
-            }
-            rows={4}
+        {/* Team B stats */}
+        <div className="border border-white/15 rounded-lg p-3">
+          <p className="text-sm text-green-300 mb-2">Team B Score</p>
+          <div className="grid md:grid-cols-3 gap-3">
+            <div>
+              <label className="text-xs text-gray-300">Runs</label>
+              <input
+                name="team_b_runs"
+                value={result.team_b_runs ?? ""}
+                onChange={handleChange}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="text-xs text-gray-300">Wickets</label>
+              <input
+                name="team_b_wickets"
+                value={result.team_b_wickets ?? ""}
+                onChange={handleChange}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="text-xs text-gray-300">Overs</label>
+              <input
+                name="team_b_overs"
+                value={result.team_b_overs ?? ""}
+                onChange={handleChange}
+                className={inputClass}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label className="text-sm text-gray-300">Player of the Match</label>
+          <input
+            name="player_of_match"
+            value={result.player_of_match ?? ""}
+            onChange={handleChange}
+            className={inputClass}
           />
+        </div>
 
-          {/* SAVE BUTTON */}
-          <Button onClick={saveResult} disabled={loading}>
-            {loading ? "Saving..." : "Save Result"}
-          </Button>
-        </CardContent>
-      </Card>
+        <Button
+          disabled={saving}
+          onClick={saveResult}
+          className="w-full mt-4 bg-green-500 hover:bg-green-400 text-black"
+        >
+          {saving ? "Saving…" : "Save Changes"}
+        </Button>
+      </div>
     </div>
+  );
+}
+
+export default function EditResultPage() {
+  return (
+    <AdminGuard>
+      <EditResultInner />
+    </AdminGuard>
   );
 }

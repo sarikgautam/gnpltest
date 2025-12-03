@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import AdminGuard from "@/components/admin/AdminGuard";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
@@ -10,76 +11,99 @@ type Team = {
   name: string;
 };
 
-function AddFixtureInner() {
+type Fixture = {
+  id: string;
+  match_no: number;
+  team_a: string | null;
+  team_b: string | null;
+  date_time: string;
+  venue: string;
+  stage: string;
+  overs: number | null;
+  status: string;
+};
+
+function EditFixtureInner() {
+  const params = useParams();
+  const router = useRouter();
+  const fixtureId = params.id as string;
+
   const [teams, setTeams] = useState<Team[]>([]);
+  const [fixture, setFixture] = useState<Fixture | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const [form, setForm] = useState({
-    match_no: "",
-    team_a: "",
-    team_b: "",
-    date_time: "",
-    venue: "",
-    stage: "Group",
-    overs: "20",
-    status: "upcoming",
-  });
-
-  const fetchTeams = async () => {
-    const { data } = await supabase
+  const fetchData = async () => {
+    const { data: teamsData } = await supabase
       .from("teams")
       .select("id,name")
       .order("name", { ascending: true });
 
-    setTeams((data || []) as Team[]);
+    const { data: fixtureData } = await supabase
+      .from("fixtures")
+      .select("*")
+      .eq("id", fixtureId)
+      .single();
+
+    setTeams((teamsData || []) as Team[]);
+    setFixture(fixtureData as Fixture);
   };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const inputClass =
+    "w-full rounded-lg bg-white/10 border border-white/25 px-3 py-2 text-sm text-white";
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    if (!fixture) return;
+    setFixture({
+      ...fixture,
+      [e.target.name]:
+        e.target.type === "number" ? Number(e.target.value) : e.target.value,
+    } as Fixture);
   };
 
   const saveFixture = async () => {
-    if (!form.match_no || !form.team_a || !form.team_b || !form.date_time) {
-      alert("Please fill match no, teams and date/time.");
-      return;
-    }
-
+    if (!fixture) return;
     setSaving(true);
 
-    const { error } = await supabase.from("fixtures").insert({
-      match_no: Number(form.match_no),
-      team_a: form.team_a || null,
-      team_b: form.team_b || null,
-      date_time: form.date_time,
-      venue: form.venue,
-      stage: form.stage,
-      overs: Number(form.overs || "20"),
-      status: form.status,
-    });
+    const { error } = await supabase
+      .from("fixtures")
+      .update({
+        match_no: fixture.match_no,
+        team_a: fixture.team_a,
+        team_b: fixture.team_b,
+        date_time: fixture.date_time,
+        venue: fixture.venue,
+        stage: fixture.stage,
+        overs: fixture.overs || 20,
+        status: fixture.status,
+      })
+      .eq("id", fixtureId);
 
     setSaving(false);
 
     if (error) {
       alert(error.message);
     } else {
-      alert("Fixture added!");
-      window.location.href = "/admin/fixtures";
+      alert("Fixture updated");
+      router.push("/admin/fixtures");
     }
   };
 
-  useEffect(() => {
-    fetchTeams();
-  }, []);
-
-  const inputClass =
-    "w-full rounded-lg bg-white/10 border border-white/25 px-3 py-2 text-sm text-white";
+  if (!fixture) {
+    return (
+      <div className="text-center text-gray-300 mt-20">Loading…</div>
+    );
+  }
 
   return (
     <div className="max-w-3xl mx-auto mt-10 text-white px-4">
       <h1 className="text-3xl font-bold text-green-400 mb-6">
-        Add Fixture
+        Edit Fixture #{fixture.match_no}
       </h1>
 
       <div className="p-6 rounded-xl bg-white/10 border border-white/20 backdrop-blur-lg space-y-4">
@@ -88,7 +112,7 @@ function AddFixtureInner() {
           <input
             name="match_no"
             type="number"
-            value={form.match_no}
+            value={fixture.match_no}
             onChange={handleChange}
             className={inputClass}
           />
@@ -99,7 +123,7 @@ function AddFixtureInner() {
             <label className="text-sm text-gray-300">Team A</label>
             <select
               name="team_a"
-              value={form.team_a}
+              value={fixture.team_a ?? ""}
               onChange={handleChange}
               className={inputClass}
             >
@@ -116,7 +140,7 @@ function AddFixtureInner() {
             <label className="text-sm text-gray-300">Team B</label>
             <select
               name="team_b"
-              value={form.team_b}
+              value={fixture.team_b ?? ""}
               onChange={handleChange}
               className={inputClass}
             >
@@ -135,7 +159,7 @@ function AddFixtureInner() {
           <input
             name="date_time"
             type="datetime-local"
-            value={form.date_time}
+            value={fixture.date_time}
             onChange={handleChange}
             className={inputClass}
           />
@@ -145,7 +169,7 @@ function AddFixtureInner() {
           <label className="text-sm text-gray-300">Venue</label>
           <input
             name="venue"
-            value={form.venue}
+            value={fixture.venue}
             onChange={handleChange}
             className={inputClass}
           />
@@ -156,7 +180,7 @@ function AddFixtureInner() {
             <label className="text-sm text-gray-300">Stage</label>
             <select
               name="stage"
-              value={form.stage}
+              value={fixture.stage}
               onChange={handleChange}
               className={inputClass}
             >
@@ -171,13 +195,13 @@ function AddFixtureInner() {
             <label className="text-sm text-gray-300">Overs</label>
             <select
               name="overs"
-              value={form.overs}
+              value={fixture.overs ?? 20}
               onChange={handleChange}
               className={inputClass}
             >
-              <option value="10">10</option>
-              <option value="15">15</option>
-              <option value="20">20</option>
+              <option value={10}>10</option>
+              <option value={15}>15</option>
+              <option value={20}>20</option>
             </select>
           </div>
 
@@ -185,7 +209,7 @@ function AddFixtureInner() {
             <label className="text-sm text-gray-300">Status</label>
             <select
               name="status"
-              value={form.status}
+              value={fixture.status}
               onChange={handleChange}
               className={inputClass}
             >
@@ -201,17 +225,17 @@ function AddFixtureInner() {
           onClick={saveFixture}
           className="w-full mt-4 bg-green-500 hover:bg-green-400 text-black"
         >
-          {saving ? "Saving..." : "Save Fixture"}
+          {saving ? "Saving…" : "Save Changes"}
         </Button>
       </div>
     </div>
   );
 }
 
-export default function AddFixturePage() {
+export default function EditFixturePage() {
   return (
     <AdminGuard>
-      <AddFixtureInner />
+      <EditFixtureInner />
     </AdminGuard>
   );
 }
