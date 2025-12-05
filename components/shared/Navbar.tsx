@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Menu, X, ChevronDown } from "lucide-react";
+import ThemeToggle from "@/components/ThemeToggle";
+
 
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -94,6 +96,9 @@ export default function Navbar() {
           <Link href="/admin" className="text-gray-300 hover:text-cyan-400 transition">
             Admin
           </Link>
+
+          {/* ⭐ THEME TOGGLE (DESKTOP) */}
+          <ThemeToggle />
         </div>
 
         {/* MOBILE MENU BUTTON */}
@@ -149,6 +154,9 @@ export default function Navbar() {
           <Link href="/admin" className="block text-gray-300 hover:text-cyan-400">
             Admin
           </Link>
+
+          {/* ⭐ THEME TOGGLE (MOBILE) */}
+          <ThemeToggle />
         </div>
       )}
     </nav>

@@ -1,139 +1,227 @@
 import { supabase } from "@/lib/supabaseServer";
 import Image from "next/image";
 
-export default async function ScorecardPage(
-  props: { params: Promise<{ id: string }> }
-) {
-  const { id: fixtureId } = await props.params;
+export default async function ScorecardPage({ params }: any) {
+  const matchId = (await params).id;
 
-  console.log("🔍 SCORECARD FIXTURE ID:", fixtureId);
-
-  // 1) Load fixture
+  // ---- FETCH FIXTURE ----
   const { data: fixture, error: fixtureErr } = await supabase
     .from("fixtures")
     .select("*")
-    .eq("id", fixtureId)
+    .eq("id", matchId)
     .single();
 
-  console.log("📘 FIXTURE:", fixture);
-
-  if (!fixture) {
+  if (!fixture || fixtureErr) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-white text-xl">
-        Match not found
+      <div className="p-10 text-center text-white">
+        <h1 className="text-3xl font-bold text-red-400">Match not found</h1>
       </div>
     );
   }
 
-  // 2) Load result
-  const { data: result, error: resultErr } = await supabase
+  // ---- FETCH RESULT ----
+  const { data: result } = await supabase
     .from("results")
     .select("*")
-    .eq("match_id", fixtureId)
+    .eq("match_id", matchId)
     .single();
 
-  console.log("📙 RESULT:", result);
-
-  // 3) Load teams
-  const { data: teams } = await supabase
-    .from("teams")
-    .select("id,name,logo");
+  // ---- FETCH TEAMS ----
+  const { data: teams } = await supabase.from("teams").select("*");
 
   const teamA = teams?.find((t) => t.id === fixture.team_a);
   const teamB = teams?.find((t) => t.id === fixture.team_b);
 
+  // ---- FETCH PLAYER STATS ----
+  const { data: stats } = await supabase
+    .from("player_match_stats")
+    .select("*, players(*)")
+    .eq("match_id", matchId);
+
+  const battingA = stats?.filter((s) => s.players.team_id === teamA?.id) || [];
+  const battingB = stats?.filter((s) => s.players.team_id === teamB?.id) || [];
+  // ---- FETCH PLAYER OF THE MATCH ----
+let playerOfMatchName = null;
+
+if (result?.player_of_match) {
+  const { data: pomPlayer } = await supabase
+    .from("players")
+    .select("name")
+    .eq("id", result.player_of_match)
+    .single();
+
+  playerOfMatchName = pomPlayer?.name || null;
+}
+
+
+  // helpers
+  const formatOvers = (o: any) => (o ? o.toString() : "-");
+
+  const scoreA = result
+    ? `${result.team_a_runs}/${result.team_a_wickets} (${formatOvers(result.team_a_overs)})`
+    : "—";
+
+  const scoreB = result
+    ? `${result.team_b_runs}/${result.team_b_wickets} (${formatOvers(result.team_b_overs)})`
+    : "—";
+
   return (
-    <div className="min-h-screen p-6 text-white">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen p-6 text-white bg-[#060b0a]">
+      <div className="max-w-5xl mx-auto space-y-8">
 
         {/* HEADER */}
-        <h1 className="text-4xl font-bold text-green-400 mb-6">
-          Match #{fixture.match_no} Scorecard
-        </h1>
-
-        {/* MATCH INFO */}
-        <div className="bg-white/10 p-6 rounded-xl backdrop-blur border border-white/20">
-
-          {/* TEAMS */}
-          <div className="flex items-center justify-between mb-6">
-            {/* TEAM A */}
-            <div className="flex items-center gap-3">
-              <Image
-                src={teamA?.logo || "/no-logo.png"}
-                alt={teamA?.name || "Team A"}
-                width={50}
-                height={50}
-                className="object-contain"
-              />
-              <h2 className="text-xl font-semibold">{teamA?.name}</h2>
-            </div>
-
-            <span className="text-gray-400">vs</span>
-
-            {/* TEAM B */}
-            <div className="flex items-center gap-3">
-              <Image
-                src={teamB?.logo || "/no-logo.png"}
-                alt={teamB?.name || "Team B"}
-                width={50}
-                height={50}
-                className="object-contain"
-              />
-              <h2 className="text-xl font-semibold">{teamB?.name}</h2>
-            </div>
-          </div>
-
-          <p className="text-gray-300 text-sm mb-3">
-            Stage: <span className="text-green-300">{fixture.stage}</span> •{" "}
-            Overs: <span className="text-green-300">{fixture.overs}</span>
+        <div className="bg-white/10 p-6 rounded-xl border border-white/20 backdrop-blur-lg">
+          <h1 className="text-3xl font-bold text-green-400">
+            Match #{fixture.match_no} – Scorecard
+          </h1>
+          <p className="text-gray-300 mt-1">
+            {fixture.stage} • {fixture.overs} overs
           </p>
+        </div>
 
-          <hr className="border-white/20 my-4" />
-
-          {/* RESULT SUMMARY */}
-          {result ? (
-            <>
-              <h2 className="text-2xl font-bold text-green-400 mb-2">Result</h2>
-              <p className="text-lg mb-4">{result.score_summary}</p>
-
-              <div className="grid md:grid-cols-2 gap-4">
-                {/* TEAM A SCORE */}
-                <div className="bg-black/20 p-4 rounded-xl border border-white/20">
-                  <h3 className="text-green-300 font-semibold mb-2">
-                    {teamA?.name}
-                  </h3>
-
-                  <p>Runs: {result.team_a_runs}</p>
-                  <p>Wickets: {result.team_a_wickets}</p>
-                  <p>Overs: {result.team_a_overs}</p>
-                </div>
-
-                {/* TEAM B SCORE */}
-                <div className="bg-black/20 p-4 rounded-xl border border-white/20">
-                  <h3 className="text-green-300 font-semibold mb-2">
-                    {teamB?.name}
-                  </h3>
-
-                  <p>Runs: {result.team_b_runs}</p>
-                  <p>Wickets: {result.team_b_wickets}</p>
-                  <p>Overs: {result.team_b_overs}</p>
+        {/* TEAM SCORES */}
+        <div className="grid md:grid-cols-2 gap-6">
+          {[{ team: teamA, score: scoreA }, { team: teamB, score: scoreB }].map(
+            ({ team, score }, idx) => (
+              <div
+                key={idx}
+                className="bg-white/10 p-6 rounded-xl border border-white/20 backdrop-blur-lg flex items-center gap-4"
+              >
+                <Image
+                  src={team?.logo || "/no-logo.png"}
+                  alt={team?.name || ""}
+                  width={80}
+                  height={80}
+                  className="object-contain rounded-lg"
+                />
+                <div>
+                  <p className="text-xl font-bold text-green-300">{team?.name}</p>
+                  <p className="text-2xl font-extrabold mt-1">{score}</p>
                 </div>
               </div>
-
-              {/* PLAYER OF MATCH */}
-              <div className="mt-6 bg-white/10 p-4 rounded-xl border border-white/20">
-                <h3 className="font-bold text-green-300 mb-2">
-                  Player of the Match
-                </h3>
-                <p>{result.player_of_match || "Not recorded"}</p>
-              </div>
-            </>
-          ) : (
-            <p className="text-gray-400 mt-6">
-              No result added yet. Match not completed.
-            </p>
+            )
           )}
         </div>
+
+        {/* WINNER */}
+        {result && (
+          <div className="bg-green-500/20 text-green-300 p-4 rounded-lg border border-green-500/40">
+            <p className="text-lg font-semibold">
+              Winner: {teams?.find((t) => t.id === result.winner)?.name}
+            </p>
+            {result.score_summary && (
+              <p className="text-sm text-gray-300 mt-1">{result.score_summary}</p>
+            )}
+          </div>
+        )}
+
+        {/* PLAYER OF THE MATCH */}
+{playerOfMatchName && (
+  <div className="bg-yellow-500/10 text-yellow-300 p-4 rounded-lg border border-yellow-500/40">
+    <p className="text-lg font-semibold">
+      Player of the Match: {playerOfMatchName}
+    </p>
+  </div>
+)}
+
+        {/* BATTING TABLES */}
+        {[{ label: teamA?.name, list: battingA }, { label: teamB?.name, list: battingB }].map(
+          ({ label, list }, idx) => (
+            <div
+              key={idx}
+              className="bg-white/10 p-6 rounded-xl border border-white/20 backdrop-blur-lg"
+            >
+              <h2 className="text-2xl text-green-400 font-bold mb-4">{label} Batting</h2>
+
+              <table className="w-full text-left text-sm">
+                <thead className="text-gray-300 border-b border-white/20">
+                  <tr>
+                    <th className="py-2">Player</th>
+                    <th>R</th>
+                    <th>B</th>
+                    <th>4s</th>
+                    <th>6s</th>
+                    <th>SR</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {list.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="text-gray-500 py-3">
+                        No batting data
+                      </td>
+                    </tr>
+                  ) : (
+                    list.map((s: any) => (
+                      <tr key={s.id} className="border-b border-white/10">
+                        <td className="py-2">{s.players.name}</td>
+                        <td>{s.runs}</td>
+                        <td>{s.balls}</td>
+                        <td>{s.fours}</td>
+                        <td>{s.sixes}</td>
+                        <td>
+                          {s.balls > 0
+                            ? ((s.runs / s.balls) * 100).toFixed(1)
+                            : "-"}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )
+        )}
+
+        {/* BOWLING TABLES */}
+        {[{ label: teamA?.name, list: battingB }, { label: teamB?.name, list: battingA }].map(
+          ({ label, list }, idx) => (
+            <div
+              key={idx}
+              className="bg-white/10 p-6 rounded-xl border border-white/20 backdrop-blur-lg"
+            >
+              <h2 className="text-2xl text-green-400 font-bold mb-4">{label} Bowling</h2>
+
+              <table className="w-full text-left text-sm">
+                <thead className="text-gray-300 border-b border-white/20">
+                  <tr>
+                    <th className="py-2">Player</th>
+                    <th>O</th>
+                    <th>R</th>
+                    <th>W</th>
+                    <th>Econ</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {list.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="text-gray-500 py-3">
+                        No bowling data
+                      </td>
+                    </tr>
+                  ) : (
+                    list.map((s: any) => (
+                      <tr key={s.id} className="border-b border-white/10">
+                        <td className="py-2">{s.players.name}</td>
+                        <td>{s.overs}</td>
+                        <td>{s.runs}</td>
+                        <td>{s.wickets}</td>
+                        <td>
+                          {s.overs && Number(s.overs) > 0
+                            ? (s.runs / Number(s.overs)).toFixed(1)
+                            : "-"}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )
+        )}
+
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import UpcomingFixtures from "@/components/fixtures/UpcomingFixtures";
 import LatestResults from "@/components/results/LatestResults";
 import SponsorsSection from "@/components/sponsors/SponsorsSection";
 import GallerySection from "@/components/gallery/GallerySection";
+import LeaderboardSection from "@/components/leaderboard/LeaderboardSection";
 
 export default function HomePage() {
   return (
@@ -11,6 +12,8 @@ export default function HomePage() {
       <HeroSection />
       <div className="section-divider"></div>
       <TeamsSection />
+      <div className="section-divider"></div>
+      <LeaderboardSection />
       <div className="section-divider"></div>
       <LatestResults />
       <div className="section-divider"></div>

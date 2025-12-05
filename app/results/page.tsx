@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import ScorecardModal from "@/components/results/ScorecardModal";
 import { Button } from "@/components/ui/button";
+import Image from "next/image";
 
 export default function ResultsPage() {
   const [results, setResults] = useState<any[]>([]);
@@ -11,101 +12,133 @@ export default function ResultsPage() {
   const [teams, setTeams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchData = async () => {
+  // Modal state
+  const [openModal, setOpenModal] = useState(false);
+  const [selected, setSelected] = useState<any>(null);
+
+  const fetchEverything = async () => {
     const { data: teamsData } = await supabase.from("teams").select("*");
-    const { data: fixtureData } = await supabase.from("fixtures").select("*");
-    const { data: resultData } = await supabase
+    const { data: fixturesData } = await supabase.from("fixtures").select("*");
+    const { data: resultsData } = await supabase
       .from("results")
       .select("*")
       .order("created_at", { ascending: false });
 
+    setResults(resultsData || []);
+    setFixtures(fixturesData || []);
     setTeams(teamsData || []);
-    setFixtures(fixtureData || []);
-    setResults(resultData || []);
     setLoading(false);
   };
 
   useEffect(() => {
-    fetchData();
+    fetchEverything();
   }, []);
 
   const getTeam = (id: string) => teams.find((t) => t.id === id);
   const getFixture = (id: string) => fixtures.find((f) => f.id === id);
 
+  if (loading) {
+    return (
+      <div className="text-center text-gray-300 py-20">
+        Loading results…
+      </div>
+    );
+  }
+
   return (
-    <section className="max-w-7xl mx-auto px-4 py-20">
-      <h1 className="text-4xl font-bold text-center mb-12 text-green-400">
-        Results
+    <div className="min-h-screen p-6 text-white">
+      <h1 className="text-4xl font-bold text-green-400 mb-10 text-center drop-shadow-lg">
+        Match Results
       </h1>
 
-      {loading && (
-        <p className="text-center text-gray-500">Loading results…</p>
-      )}
-
-      <div className="grid md:grid-cols-2 gap-10">
+      <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-6">
         {results.map((res) => {
           const fixture = getFixture(res.match_id);
-          const A = getTeam(fixture?.team_a);
-          const B = getTeam(fixture?.team_b);
+          if (!fixture) return null;
+
+          const teamA = getTeam(fixture.team_a);
+          const teamB = getTeam(fixture.team_b);
           const winner = getTeam(res.winner);
 
           return (
             <div
               key={res.id}
-              className="
-                backdrop-blur-xl bg-black/20 border border-white/30 
-                rounded-2xl shadow-xl p-8 
-                transition-all hover:-translate-y-2 hover:shadow-2xl
-              "
+              className="bg-white/10 p-6 rounded-xl border border-white/20 backdrop-blur-xl shadow-lg hover:shadow-green-500/30 transition"
             >
-              {/* Header */}
-              <div className="text-center mb-6">
-                <p className="text-green-300 font-bold">
-                  Match #{fixture.match_no}
-                </p>
+              {/* HEADER */}
+              <div className="text-center">
+                <p className="text-xs text-gray-400">Match #{fixture.match_no}</p>
                 <p className="text-sm text-gray-300 mt-1">
                   {new Date(fixture.date_time).toLocaleString("en-AU")}
                 </p>
-                <p className="text-sm text-gray-400">{fixture.venue}</p>
+                <p className="text-xs text-gray-400">{fixture.stage} • {fixture.overs || 20} overs</p>
               </div>
 
-              {/* Teams */}
-              <div className="flex items-center justify-between px-6">
+              {/* TEAMS */}
+              <div className="flex items-center justify-between mt-4">
                 <div className="flex flex-col items-center">
-                  <img src={A?.logo} className="w-24 h-24 object-contain" />
-                  <p className="text-white font-semibold mt-2">{A?.name}</p>
+                  <Image
+                    src={teamA?.logo || "/no-logo.png"}
+                    alt={teamA?.name}
+                    width={60}
+                    height={60}
+                    className="rounded-full border object-cover"
+                  />
+                  <p className="text-sm mt-1">{teamA?.name}</p>
                 </div>
 
-                <p className="text-green-400 font-bold text-2xl">VS</p>
+                <p className="text-xl font-bold text-gray-300">VS</p>
 
                 <div className="flex flex-col items-center">
-                  <img src={B?.logo} className="w-24 h-24 object-contain" />
-                  <p className="text-white font-semibold mt-2">{B?.name}</p>
+                  <Image
+                    src={teamB?.logo || "/no-logo.png"}
+                    alt={teamB?.name}
+                    width={60}
+                    height={60}
+                    className="rounded-full border object-cover"
+                  />
+                  <p className="text-sm mt-1">{teamB?.name}</p>
                 </div>
               </div>
 
-              {/* Score Summary */}
-              <p className="text-center text-gray-300 italic mt-4">
+              {/* SUMMARY */}
+              <p className="text-center text-sm text-gray-300 italic mt-4">
                 {res.score_summary}
               </p>
 
-              {/* Winner Badge */}
-              <p className="text-center mt-2 font-semibold text-green-300">
+              {/* WINNER */}
+              <p className="text-center mt-3 font-semibold text-green-400">
                 Winner: {winner?.name}
               </p>
 
-              {/* CTA */}
-              <div className="text-center mt-6">
-                <Link href={`/fixtures/${fixture.id}`}>
-                  <Button className="bg-green-400 text-black hover:bg-green-300">
-                    View Scorecard
-                  </Button>
-                </Link>
+              {/* Scorecard Button */}
+              <div className="mt-6 flex justify-center">
+                <Button
+                  className="bg-green-500 hover:bg-green-400 text-black"
+                  onClick={() =>
+                    setSelected({ fixture, result: res, teamA, teamB }) ||
+                    setOpenModal(true)
+                  }
+                >
+                  View Scorecard
+                </Button>
               </div>
             </div>
           );
         })}
       </div>
-    </section>
+
+      {/* SCORECARD MODAL */}
+      {selected && (
+        <ScorecardModal
+          open={openModal}
+          onClose={setOpenModal}
+          result={selected.result}
+          fixture={selected.fixture}
+          teamA={selected.teamA}
+          teamB={selected.teamB}
+        />
+      )}
+    </div>
   );
 }

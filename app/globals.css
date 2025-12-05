@@ -121,25 +121,31 @@
   }
 }
 /* GLOBAL BACKGROUND THEME FOR GNPL WEBSITE */
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
 /* maybe some defaults here */
 /* --- GNPL NEON GREEN GLOW THEME --- */
-
+/*
 body {
   background: radial-gradient(
       circle at top left,
-      rgba(0, 255, 140, 0.18) 0%,
-      rgba(0, 255, 120, 0.10) 20%,
+      rgba(243, 4, 243, 0.18) 0%,
+      rgba(181, 5, 216, 0.1) 20%,
       rgba(0, 0, 0, 1) 80%
     ),
     radial-gradient(
       circle at bottom right,
-      rgba(0, 255, 120, 0.18) 0%,
-      rgba(0, 255, 90, 0.08) 25%,
+      rgba(225, 0, 255, 0.18) 0%,
+      rgba(250, 18, 211, 0.08) 25%,
       rgba(0, 0, 0, 1) 80%
     ),
     #050505;
@@ -148,6 +154,7 @@ body {
   color: #e8ffe8;
   min-height: 100vh;
 }
+*/
 /* --- GNPL Neon Section Divider --- */
 
 .section-divider {
@@ -186,4 +193,49 @@ body {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+@keyframes floatParticle {
+  0% { transform: translateY(0px) translateX(0px); opacity: 0.4; }
+  50% { transform: translateY(-18px) translateX(12px); opacity: 0.9; }
+  100% { transform: translateY(0px) translateX(0px); opacity: 0.4; }
+}
 
+.particle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: white;
+  border-radius: 50%;
+  opacity: 0.5;
+  animation: floatParticle 6s ease-in-out infinite;
+}
+
+/* Default (Dark Mode) – already your design */
+body {
+  background: #18002e;
+  color: white;
+}
+
+/* Light mode */
+html.light body {
+  background: #f7f7f7;
+  color: #111;
+}
+
+/* Glass backgrounds adapted for light mode */
+html.light .glass-box {
+  background: rgba(255, 255, 255, 0.6) !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+  color: #111 !important;
+}
+
+html.light .section-bg {
+  background: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Headings in light mode turn slightly dark green */
+html.light h1,
+html.light h2,
+html.light h3,
+html.light h4 {
+  color: #036920; /* GNPL green */
+}
