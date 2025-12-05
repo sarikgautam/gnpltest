@@ -1,15 +1,17 @@
 import { supabase } from "@/lib/supabaseServer";
 import Link from "next/link";
 
-export default async function PlayerStatsPage({
+export default async function PublicPlayerStatsPage({
   params,
 }: {
   params: Promise<{ matchId: string }>;
 }) {
   const { matchId } = await params;
 
-  // FETCH RESULT
-  const { data: result, error: resultErr } = await supabase
+  // ----------------------------
+  // 1️⃣ FETCH RESULT
+  // ----------------------------
+  const { data: result } = await supabase
     .from("results")
     .select("*")
     .eq("match_id", matchId)
@@ -23,14 +25,18 @@ export default async function PlayerStatsPage({
     );
   }
 
-  // FETCH FIXTURE
+  // ----------------------------
+  // 2️⃣ FETCH FIXTURE
+  // ----------------------------
   const { data: fixture } = await supabase
     .from("fixtures")
     .select("*")
     .eq("id", matchId)
     .single();
 
-  // FETCH PLAYERS FOR BOTH TEAMS
+  // ----------------------------
+  // 3️⃣ FETCH TEAM PLAYERS
+  // ----------------------------
   const { data: teamAplayers } = await supabase
     .from("players")
     .select("*")
@@ -41,7 +47,9 @@ export default async function PlayerStatsPage({
     .select("*")
     .eq("team_id", fixture?.team_b || "");
 
-  // GET PLAYER OF MATCH NAME
+  // ----------------------------
+  // 4️⃣ PLAYER OF THE MATCH
+  // ----------------------------
   let playerOfMatchName: string | null = null;
 
   if (result.player_of_match) {
@@ -60,15 +68,19 @@ export default async function PlayerStatsPage({
         Player Stats – Match #{fixture?.match_no}
       </h1>
 
+      {/* PLAYER OF MATCH */}
       <p className="text-gray-300 mb-6">
         Player of the Match:{" "}
         <span className="text-green-400">{playerOfMatchName || "N/A"}</span>
       </p>
 
+      {/* PLAYER STATS CARD */}
       <div className="grid md:grid-cols-2 gap-8">
         {/* TEAM A */}
         <div className="bg-white/10 p-6 rounded-xl border border-white/10 backdrop-blur">
-          <h2 className="text-xl font-semibold mb-4">{fixture?.team_a_name}</h2>
+          <h2 className="text-xl font-semibold mb-4">
+            {fixture?.team_a_name || "Team A"}
+          </h2>
 
           {!teamAplayers?.length ? (
             <p className="text-gray-400">No players found.</p>
@@ -91,7 +103,9 @@ export default async function PlayerStatsPage({
 
         {/* TEAM B */}
         <div className="bg-white/10 p-6 rounded-xl border border-white/10 backdrop-blur">
-          <h2 className="text-xl font-semibold mb-4">{fixture?.team_b_name}</h2>
+          <h2 className="text-xl font-semibold mb-4">
+            {fixture?.team_b_name || "Team B"}
+          </h2>
 
           {!teamBplayers?.length ? (
             <p className="text-gray-400">No players found.</p>
@@ -113,12 +127,13 @@ export default async function PlayerStatsPage({
         </div>
       </div>
 
+      {/* BACK */}
       <div className="mt-10">
         <Link
-          href={`/admin/results/${matchId}/scorecard`}
+          href="/results"
           className="px-5 py-3 bg-green-500 text-black rounded-lg font-semibold hover:bg-green-400"
         >
-          Edit Full Scorecard
+          Back to Results
         </Link>
       </div>
     </div>
