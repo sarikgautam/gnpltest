@@ -319,7 +319,7 @@ const ladderPosition =
             {/* Player Row */}
             <div className="relative flex items-center gap-4">
               <Image
-                src={p.photo || "/player.png"}
+                src={p.photo || "/player.jpg"}
                 alt={p.name}
                 width={80}
                 height={80}
